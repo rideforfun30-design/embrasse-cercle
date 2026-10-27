@@ -1,6 +1,7 @@
 import { cancellationEffectiveAt, membershipIsActive, MEMBERSHIP_POLICY_VERSION } from "./membership-policy";
 import { AccessError, adminNotificationEmail, notificationsConfigured, getSiteAccess, requireApprovedSiteAccess, requireSiteAccessAdmin, type AccessEnv } from "./access";
 import { accessRequestNotification, accessDecisionNotification, joinedSubscriptionNotifications } from "./notifications";
+import { subscriptionSite } from "./subscription-site";
 
 export type BureauUser = { id: string; name: string; email: string };
 export type SqlStatement = {
@@ -19,6 +20,7 @@ type Membership = { role: "admin" | "member" };
 type SubscriptionMember = { subscription_id: string; user_id: string; status: string; cancellation_requested_at: string | null; cancellation_effective_at: string | null; policy_version: string | null; policy_accepted_at: string | null };
 type Subscription = {
   id: string; workspace_id: string; owner_id: string; name: string; category: string;
+  website_url: string | null;
   description: string; total_cents: number; max_seats: number; next_due_date: string;
   archived: number; created_at: string;
 };
@@ -50,8 +52,14 @@ function calendarDate(value: unknown) {
 function subscriptionInput(data: Record<string, unknown>) {
   const category = text(data.category ?? "Autre", "Catégorie", 1, 50);
   if (!CATEGORIES.includes(category)) throw new ApiError(400, "Catégorie inconnue.");
+  let websiteUrl: string | null = null;
+  if (data.websiteUrl !== undefined && data.websiteUrl !== null && data.websiteUrl !== "") {
+    const site = subscriptionSite(data.websiteUrl);
+    if (!site) throw new ApiError(400, "Lien du site invalide. Utilisez l’adresse publique HTTP ou HTTPS du service.");
+    websiteUrl = site.websiteUrl;
+  }
   return {
-    name: text(data.name, "Nom", 1, 100), category,
+    name: text(data.name, "Nom", 1, 100), category, websiteUrl,
     description: text(data.description ?? "", "Description", 0, 2000),
     totalCents: integer(data.totalCents, "Prix mensuel", 1, 10_000_000),
     maxSeats: integer(data.maxSeats, "Nombre de places", 1, 100),
@@ -125,7 +133,7 @@ async function state(db: BureauDatabase, user: BureauUser | null, workspaceId: s
     const mine=allMembers.find(m=>m.subscription_id===s.id&&m.user_id===user.id);
     const shares=active.length?splitCents(s.total_cents,active):{};
     const prospective=active.includes(user.id)?shares[user.id]:splitCents(s.total_cents,[...active,user.id])[user.id];
-    return {id:s.id,name:s.name,category:s.category,description:s.description,totalCents:s.total_cents,maxSeats:s.max_seats,activeCount:active.length,ownerId:s.owner_id,ownerName:s.owner_name,memberIds:active,myStatus:s.owner_id===user.id?"owner":mine?.status==="active"&&!membershipIsActive(mine.status,mine.cancellation_effective_at,now)?"none":mine?.status??"none",myCancellationRequestedAt:mine&&membershipIsActive(mine.status,mine.cancellation_effective_at,now)?mine.cancellation_requested_at:null,myCancellationEffectiveAt:mine&&membershipIsActive(mine.status,mine.cancellation_effective_at,now)?mine.cancellation_effective_at:null,myPolicyVersion:mine?.policy_version??null,myPolicyAcceptedAt:mine?.policy_accepted_at??null,shareCents:shares[user.id]??Math.ceil(s.total_cents/Math.max(1,active.length)),prospectiveShareCents:prospective,fullShareCents:Math.ceil(s.total_cents/s.max_seats),nextDueDate:s.next_due_date,createdAt:s.created_at};
+    return {id:s.id,name:s.name,category:s.category,websiteUrl:s.website_url ?? null,description:s.description,totalCents:s.total_cents,maxSeats:s.max_seats,activeCount:active.length,ownerId:s.owner_id,ownerName:s.owner_name,memberIds:active,myStatus:s.owner_id===user.id?"owner":mine?.status==="active"&&!membershipIsActive(mine.status,mine.cancellation_effective_at,now)?"none":mine?.status??"none",myCancellationRequestedAt:mine&&membershipIsActive(mine.status,mine.cancellation_effective_at,now)?mine.cancellation_requested_at:null,myCancellationEffectiveAt:mine&&membershipIsActive(mine.status,mine.cancellation_effective_at,now)?mine.cancellation_effective_at:null,myPolicyVersion:mine?.policy_version??null,myPolicyAcceptedAt:mine?.policy_accepted_at??null,shareCents:shares[user.id]??Math.ceil(s.total_cents/Math.max(1,active.length)),prospectiveShareCents:prospective,fullShareCents:Math.ceil(s.total_cents/s.max_seats),nextDueDate:s.next_due_date,createdAt:s.created_at};
   });
   const {results:requests} = await db.prepare("SELECT sm.subscription_id AS subscriptionId,s.name AS subscriptionName,sm.user_id AS userId,p.name AS userName,sm.joined_at AS createdAt FROM subscription_members sm JOIN subscriptions s ON s.id=sm.subscription_id JOIN profiles p ON p.id=sm.user_id WHERE s.workspace_id=? AND s.archived=0 AND sm.status='pending' AND (?='admin' OR s.owner_id=?) ORDER BY sm.joined_at").bind(workspace.id,selected.role,user.id).all();
   return json({access,notificationPreferences,user,workspaces,workspace:{id:workspace.id,name:workspace.name,role:selected.role,...(selected.role==="admin"?{inviteCode:workspace.invite_code}:{})},members,subscriptions,requests,billing:{configured:false,mode:"disabled"},payments:[]});
@@ -254,7 +262,7 @@ export async function handleBureauRequest(request: Request, db: BureauDatabase, 
     if(parts[0]==="subscriptions"&&parts.length===1&&request.method==="POST") {
       const workspaceId=text(data.workspaceId,"Bureau",1,100);await requireWorkspace(db,workspaceId,user.id);
       const s=subscriptionInput(data),subscriptionId=id(),now=iso();
-      await db.batch([db.prepare("INSERT INTO subscriptions (id,workspace_id,owner_id,name,category,description,total_cents,max_seats,next_due_date,archived,created_at) SELECT ?,?,?,?,?,?,?,?,?,0,? WHERE (SELECT COUNT(*) FROM subscriptions WHERE workspace_id=?)<200 AND EXISTS(SELECT 1 FROM workspace_members WHERE workspace_id=? AND user_id=?)").bind(subscriptionId,workspaceId,user.id,s.name,s.category,s.description,s.totalCents,s.maxSeats,s.nextDueDate,now,workspaceId,workspaceId,user.id),db.prepare("INSERT INTO subscription_members (subscription_id,user_id,status,joined_at) SELECT ?,?,'active',? WHERE EXISTS(SELECT 1 FROM subscriptions WHERE id=?)").bind(subscriptionId,user.id,now,subscriptionId)]);
+      await db.batch([db.prepare("INSERT INTO subscriptions (id,workspace_id,owner_id,name,category,website_url,description,total_cents,max_seats,next_due_date,archived,created_at) SELECT ?,?,?,?,?,?,?,?,?,?,0,? WHERE (SELECT COUNT(*) FROM subscriptions WHERE workspace_id=?)<200 AND EXISTS(SELECT 1 FROM workspace_members WHERE workspace_id=? AND user_id=?)").bind(subscriptionId,workspaceId,user.id,s.name,s.category,s.websiteUrl,s.description,s.totalCents,s.maxSeats,s.nextDueDate,now,workspaceId,workspaceId,user.id),db.prepare("INSERT INTO subscription_members (subscription_id,user_id,status,joined_at) SELECT ?,?,'active',? WHERE EXISTS(SELECT 1 FROM subscriptions WHERE id=?)").bind(subscriptionId,user.id,now,subscriptionId)]);
       const created = await db.prepare("SELECT id FROM subscriptions WHERE id=?").bind(subscriptionId).first();
       if(!created)throw new ApiError(409,"Ce cercle a atteint la limite de 200 abonnements, archives comprises.");
       return json({ok:true,subscriptionId},201);
@@ -263,8 +271,8 @@ export async function handleBureauRequest(request: Request, db: BureauDatabase, 
       const {sub,canManage}=await requireSubscription(db,parts[1],user.id),action=parts[2],now=iso();
       if(parts.length===2&&request.method==="PATCH") {
         if(!canManage)throw new ApiError(403,"Seul le responsable peut modifier cet abonnement.");
-        const s=subscriptionInput({...{name:sub.name,category:sub.category,description:sub.description,totalCents:sub.total_cents,maxSeats:sub.max_seats,nextDueDate:sub.next_due_date},...data});
-        const result=await db.prepare("UPDATE subscriptions SET name=?,category=?,description=?,total_cents=?,max_seats=?,next_due_date=? WHERE id=? AND archived=0 AND (SELECT COUNT(*) FROM subscription_members WHERE subscription_id=? AND status='active' AND (cancellation_effective_at IS NULL OR cancellation_effective_at>?))<=?").bind(s.name,s.category,s.description,s.totalCents,s.maxSeats,s.nextDueDate,sub.id,sub.id,now,s.maxSeats).run();
+        const s=subscriptionInput({...{name:sub.name,category:sub.category,websiteUrl:sub.website_url ?? null,description:sub.description,totalCents:sub.total_cents,maxSeats:sub.max_seats,nextDueDate:sub.next_due_date},...data});
+        const result=await db.prepare("UPDATE subscriptions SET name=?,category=?,website_url=?,description=?,total_cents=?,max_seats=?,next_due_date=? WHERE id=? AND archived=0 AND (SELECT COUNT(*) FROM subscription_members WHERE subscription_id=? AND status='active' AND (cancellation_effective_at IS NULL OR cancellation_effective_at>?))<=?").bind(s.name,s.category,s.websiteUrl,s.description,s.totalCents,s.maxSeats,s.nextDueDate,sub.id,sub.id,now,s.maxSeats).run();
         if(!result.meta.changes)throw new ApiError(409,"Le nombre de places est inférieur au nombre de participants.");return json({ok:true});
       }
       if(parts.length===2&&request.method==="DELETE") {

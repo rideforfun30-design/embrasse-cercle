@@ -36,6 +36,13 @@ export async function getSiteAccess(db: BureauDatabase, user: BureauUser | null,
   const base: SiteAccess = { enabled: env.ACCESS_CONTROL_ENABLED === "true", status: "anonymous", isAdmin: false, requestedAt: null, updatedAt: null, reason: null, notificationEmailConfigured: notificationsConfigured(env) };
   if (!user) return base;
   const isAdmin = isSiteAccessAdmin(user.id, env);
+  // Open registration admits authenticated profiles to the configured circle only.
+  // Keep existing roles and the same bounded capacity as a manual admission.
+  const defaultWorkspaceId = env.ACCESS_DEFAULT_WORKSPACE_ID?.trim();
+  if (!base.enabled && defaultWorkspaceId) {
+    await db.prepare("INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) SELECT w.id,p.id,'member',? FROM workspaces w JOIN profiles p ON p.id=? WHERE w.id=? AND (SELECT COUNT(*) FROM workspace_members WHERE workspace_id=w.id)<200 AND (SELECT COUNT(*) FROM workspace_members WHERE user_id=p.id)<20 ON CONFLICT(workspace_id,user_id) DO NOTHING")
+      .bind(new Date().toISOString(), user.id, defaultWorkspaceId).run();
+  }
   if (isAdmin || !base.enabled) return { ...base, status: "approved", isAdmin };
   const row = await db.prepare("SELECT status,reason,created_at,updated_at FROM site_access_requests WHERE user_id=?").bind(user.id).first<{status:"pending"|"approved"|"rejected";reason:string;created_at:string;updated_at:string}>();
   return { ...base, status: row?.status ?? "unrequested", requestedAt: row?.created_at ?? null, updatedAt: row?.updated_at ?? null, reason: row?.reason ?? null };

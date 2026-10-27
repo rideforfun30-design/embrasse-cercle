@@ -20,6 +20,42 @@ async function requestAccess(db:LocalD1,user:string,optIn=true){return api(db,us
 async function admit(db:LocalD1,user:string,optIn=true){assert.equal((await requestAccess(db,user,optIn)).status,201);assert.equal((await api(db,"owner",`access/${user}/approve`,"POST",{})).status,200);}
 async function workspace(db:LocalD1){const created=await api(db,"owner","workspaces","POST",{name:"Private bureau"});assert.equal(created.status,201);return created.data;}
 
+test("open access admits a signed in member to only the default circle, once and without admin rights",async()=>{
+ const db=new LocalD1(),w=await workspace(db),other=await workspace(db);
+ const config={...env,ACCESS_CONTROL_ENABLED:"false",ACCESS_DEFAULT_WORKSPACE_ID:w.workspaceId};
+ const first=await api(db,"alice","state","GET",undefined,config);
+ assert.equal(first.status,200);assert.equal(first.data.access.status,"approved");assert.equal(first.data.access.enabled,false);
+ assert.equal(first.data.workspace?.id,w.workspaceId);assert.equal(first.data.workspace?.role,"member");assert.equal(first.data.access.isAdmin,false);
+ assert.deepEqual(first.data.workspaces.map((x:any)=>x.id),[w.workspaceId]);
+ assert.equal((await api(db,"alice",`state?workspace=${other.workspaceId}`,"GET",undefined,config)).status,403);
+ await api(db,"alice","state","GET",undefined,config);
+ assert.equal((db.sqlite.prepare("SELECT COUNT(*) AS n FROM workspace_members WHERE user_id='alice'").get() as any).n,1);
+ assert.equal((db.sqlite.prepare("SELECT COUNT(*) AS n FROM site_access_requests WHERE user_id='alice'").get() as any).n,0);
+ assert.equal((db.sqlite.prepare("SELECT COUNT(*) AS n FROM notification_outbox").get() as any).n,0);
+ const anonymous=await api(db,null,"state","GET",undefined,config);assert.equal(anonymous.data.access.status,"anonymous");assert.deepEqual(anonymous.data.members,[]);
+ assert.equal((await api(db,null,"subscriptions","POST",{},config)).status,401);
+});
+
+test("open access preserves existing circle roles and approval can be turned back on",async()=>{
+ const db=new LocalD1(),w=await workspace(db),config={...env,ACCESS_CONTROL_ENABLED:"false",ACCESS_DEFAULT_WORKSPACE_ID:w.workspaceId};
+ assert.equal((await api(db,"owner","state","GET",undefined,config)).data.workspace.role,"admin");
+ await api(db,"alice","state","GET",undefined,config);
+ const closed=await api(db,"alice","state","GET",undefined,{...config,ACCESS_CONTROL_ENABLED:"true"});
+ assert.equal(closed.data.access.status,"unrequested");assert.deepEqual(closed.data.subscriptions,[]);assert.deepEqual(closed.data.members,[]);
+ assert.equal((await api(db,"alice","workspaces","POST",{name:"Bypass"},{...config,ACCESS_CONTROL_ENABLED:"true"})).status,403);
+});
+
+test("open access never creates a missing default circle or exceeds its member capacity",async()=>{
+ const db=new LocalD1(),w=await workspace(db),config={...env,ACCESS_CONTROL_ENABLED:"false",ACCESS_DEFAULT_WORKSPACE_ID:"missing"};
+ assert.equal((await api(db,"alice","state","GET",undefined,config)).data.workspaces.length,0);
+ const now=new Date().toISOString();for(let i=0;i<199;i++){
+  db.sqlite.prepare("INSERT INTO profiles (id,name,email,created_at) VALUES (?,?,?,?)").run(`capacity-${i}`,`Member ${i}`,`capacity-${i}@example.test`,now);
+  db.sqlite.prepare("INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES (?,?,'member',?)").run(w.workspaceId,`capacity-${i}`,now);
+ }
+ assert.equal((await api(db,"bob","state","GET",undefined,{...config,ACCESS_DEFAULT_WORKSPACE_ID:w.workspaceId})).data.workspaces.length,0);
+ assert.equal((db.sqlite.prepare("SELECT COUNT(*) AS n FROM workspace_members WHERE workspace_id=?").get(w.workspaceId) as any).n,200);
+});
+
 test("site access requires explicit approval before private data or any bureau mutations",async()=>{
  const db=new LocalD1(),w=await workspace(db);
  const anonymous=await api(db,null,"state");assert.equal(anonymous.data.access.status,"anonymous");assert.deepEqual(anonymous.data.workspaces,[]);

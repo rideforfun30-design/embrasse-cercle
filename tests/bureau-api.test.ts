@@ -7,9 +7,9 @@ import { handleBureauRequest, splitCents, type BureauDatabase, type SqlStatement
 
 class LocalD1 implements BureauDatabase {
   sqlite = new DatabaseSync(":memory:");
-  constructor() {
+  constructor(beforeMigration?: string) {
     this.sqlite.exec("PRAGMA foreign_keys=ON");
-    for (const file of readdirSync(new URL("../drizzle",import.meta.url)).filter(p=>p.endsWith(".sql")).sort()) {
+    for (const file of readdirSync(new URL("../drizzle",import.meta.url)).filter(p=>p.endsWith(".sql")&&(!beforeMigration||p<beforeMigration)).sort()) {
       this.sqlite.exec(readFileSync(new URL(`../drizzle/${file}`,import.meta.url),"utf8"));
     }
   }
@@ -95,6 +95,62 @@ test("subscription validation rejects invalid prices, capacity, and calendar dat
  for(const bad of [{totalCents:1.5},{totalCents:0},{maxSeats:0},{maxSeats:101},{nextDueDate:"2026-02-30"},{category:"Unknown"}]){
   assert.equal((await api(db,"owner","subscriptions","POST",{...values,...bad})).status,400);
  }
+});
+test("service links persist through create and edit without replacing a chosen subscription name",async()=>{
+ const {db,workspaceId}=await setup();
+ const created=await api(db,"owner","subscriptions","POST",{workspaceId,name:"Creative Cloud équipe",category:"Design",totalCents:5500,maxSeats:4,nextDueDate:"2026-11-01",websiteUrl:"www.adobe.com/fr/creativecloud.html?tracking=private#plans"});
+ assert.equal(created.status,201);
+ const subscriptionId=created.data.subscriptionId;
+ const read=async()=> (await api(db,"owner",`state?workspace=${workspaceId}`)).data.subscriptions.find((s:any)=>s.id===subscriptionId);
+ assert.equal((await read()).websiteUrl,"https://www.adobe.com/fr/creativecloud.html");
+ assert.equal((await read()).name,"Creative Cloud équipe");
+ assert.equal((await api(db,"owner",`subscriptions/${subscriptionId}`,"PATCH",{name:"Adobe collectif"})).status,200);
+ assert.equal((await read()).websiteUrl,"https://www.adobe.com/fr/creativecloud.html");
+ assert.equal((await read()).name,"Adobe collectif");
+ assert.equal((await api(db,"owner",`subscriptions/${subscriptionId}`,"PATCH",{websiteUrl:"https://figma.com/pricing?token=do-not-store#team"})).status,200);
+ assert.equal((await read()).websiteUrl,"https://figma.com/pricing");
+ assert.equal((await api(db,"owner",`subscriptions/${subscriptionId}`,"PATCH",{websiteUrl:""})).status,200);
+ assert.equal((await read()).websiteUrl,null);
+ assert.equal((await api(db,"owner",`subscriptions/${subscriptionId}`,"PATCH",{websiteUrl:"artlist.io"})).status,200);
+ assert.equal((await api(db,"owner",`subscriptions/${subscriptionId}`,"PATCH",{websiteUrl:null})).status,200);
+ assert.equal((await read()).websiteUrl,null);
+});
+test("subscriptions without service links remain readable and editable",async()=>{
+ const {db,subscriptionId}=await setup();
+ const state=(await api(db,"owner","state")).data;
+ assert.equal(state.subscriptions[0].websiteUrl,null);
+ assert.equal((await api(db,"owner",`subscriptions/${subscriptionId}`,"PATCH",{description:"Un ancien abonnement"})).status,200);
+ assert.equal((await api(db,"owner","state")).data.subscriptions[0].websiteUrl,null);
+});
+test("the additive service-link migration preserves existing subscription rows",async()=>{
+ const db=new LocalD1("0008"),now=new Date().toISOString();
+ db.sqlite.prepare("INSERT INTO profiles (id,name,email,created_at) VALUES ('owner','Owner','owner@example.test',?)").run(now);
+ db.sqlite.prepare("INSERT INTO workspaces (id,name,owner_id,invite_code,created_at) VALUES ('legacy','Legacy','owner','legacy-invitation-code',?)").run(now);
+ db.sqlite.prepare("INSERT INTO workspace_members (workspace_id,user_id,role,joined_at) VALUES ('legacy','owner','admin',?)").run(now);
+ db.sqlite.prepare("INSERT INTO subscriptions (id,workspace_id,owner_id,name,category,description,total_cents,max_seats,next_due_date,archived,created_at) VALUES ('legacy-tool','legacy','owner','Ancien outil','Design','Préservé',2345,5,'2026-11-01',0,?)").run(now);
+ db.sqlite.exec(readFileSync(new URL("../drizzle/0008_chief_dracula.sql",import.meta.url),"utf8"));
+ const migrated=(await api(db,"owner","state")).data.subscriptions[0];
+ assert.equal(migrated.name,"Ancien outil");assert.equal(migrated.totalCents,2345);assert.equal(migrated.websiteUrl,null);
+ assert.equal((await api(db,"owner","subscriptions/legacy-tool","PATCH",{websiteUrl:"figma.com"})).status,200);
+ assert.equal((await api(db,"owner","state")).data.subscriptions[0].websiteUrl,"https://figma.com/");
+});
+test("service links reject unsafe and malformed inputs before any subscription write",async()=>{
+ const {db,workspaceId,subscriptionId}=await setup();
+ const values={workspaceId,name:"Site",category:"Autre",totalCents:1000,maxSeats:2,nextDueDate:"2026-11-01"};
+ for(const websiteUrl of [false,42,[],{},"javascript:alert(1)","data:text/html,hello","ftp://adobe.com/file","https://name:password@adobe.com","https://localhost","http://127.0.0.1","http://0x7f000001","https://[::1]","https://metadata.google.internal","https://adobe.com:8443","https://adobe.com/\nsecret","https://bad host.com"]){
+  assert.equal((await api(db,"owner","subscriptions","POST",{...values,websiteUrl})).status,400,JSON.stringify(websiteUrl));
+  assert.equal((await api(db,"owner",`subscriptions/${subscriptionId}`,"PATCH",{websiteUrl})).status,400,JSON.stringify(websiteUrl));
+ }
+ assert.equal((await api(db,"owner","state")).data.subscriptions.length,1);
+});
+test("service links do not permit cross-circle writes or editing another member's subscription",async()=>{
+ const {db,workspaceId,inviteCode,subscriptionId}=await setup();
+ await api(db,"member","workspaces/join","POST",{code:inviteCode});
+ await api(db,"outsider","workspaces","POST",{name:"Un autre cercle"});
+ assert.equal((await api(db,"member",`subscriptions/${subscriptionId}`,"PATCH",{websiteUrl:"figma.com"})).status,403);
+ assert.equal((await api(db,"outsider",`subscriptions/${subscriptionId}`,"PATCH",{websiteUrl:"figma.com"})).status,403);
+ assert.equal((await api(db,"outsider","subscriptions","POST",{workspaceId,name:"Intrusion",category:"Autre",totalCents:100,maxSeats:1,nextDueDate:"2026-11-01",websiteUrl:"figma.com"})).status,403);
+ assert.equal((await api(db,"owner","state")).data.subscriptions[0].websiteUrl,null);
 });
 test("pending requests are only visible to their responsible people",async()=>{
  const {db,inviteCode,subscriptionId}=await setup();

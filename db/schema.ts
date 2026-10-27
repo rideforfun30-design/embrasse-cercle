@@ -29,6 +29,7 @@ export const subscriptions = sqliteTable("subscriptions", {
   ownerId: text("owner_id").notNull().references(() => profiles.id),
   name: text("name").notNull(),
   category: text("category").notNull(),
+  websiteUrl: text("website_url"),
   description: text("description").notNull().default(""),
   totalCents: integer("total_cents").notNull(),
   maxSeats: integer("max_seats").notNull(),

@@ -1,14 +1,15 @@
 # Le cercle EMBRASSE
 
-Un espace privé pour partager des abonnements entre créatifs : comptes individuels, demandes d’accès approuvées, groupes, places disponibles, répartition du prix, demandes de participation et notifications par e-mail.
+Un espace privé pour partager des abonnements entre créatifs : comptes individuels, accès sur approbation ou inscription directe, groupes, places disponibles, répartition du prix, demandes de participation et notifications par e-mail.
 
 Ce dépôt contient le code public de l’application. Il ne contient aucune base de production, aucun compte utilisateur, aucune coordonnée bancaire, aucun secret et aucun historique du déploiement privé.
 
 ## Ce qui fonctionne
 
 - Connexion par e-mail et mot de passe choisi, vérification de l’adresse et récupération du compte.
-- Validation des demandes d’accès par un administrateur.
+- Validation des demandes d’accès par un administrateur, ou inscription directe au cercle configuré selon le mode choisi.
 - Création de cercles, invitations, abonnements et demandes de participation.
+- Ajout du lien public d’un service : nom proposé, icône et accès au site, avec nom modifiable et secours par initiales.
 - Calcul des parts selon les membres et gestion du préavis de départ.
 - Préférences de notification et file d’envoi par Google Apps Script.
 - Préparation des cotisations récurrentes, avec protections empêchant leur activation accidentelle.
@@ -32,19 +33,19 @@ npm run build
 
 ## Initialiser une base locale
 
-Après la première construction, appliquer les huit fichiers SQL de `drizzle/` **une seule fois, dans l’ordre numérique**, sur une base locale vide. La commande suivante illustre le premier ; changer le nom du fichier pour chaque migration suivante :
+Après la première construction, appliquer les neuf fichiers SQL de `drizzle/` **une seule fois, dans l’ordre numérique**, sur une base locale vide. La commande suivante illustre le premier ; changer le nom du fichier pour chaque migration suivante :
 
 ```sh
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_hesitant_luminals.sql
 ```
 
-La liaison D1 locale utilise un identifiant factice. Les migrations décrivent uniquement le schéma : aucune donnée de production n’est incluse. Pour modifier le schéma, utiliser `npm run db:generate` puis relire le SQL généré.
+La liaison D1 locale utilise un identifiant factice. Les migrations décrivent uniquement le schéma : aucune donnée de production n’est incluse. Sur une instance déjà initialisée, appliquer seulement les nouvelles migrations ; `0008_chief_dracula.sql` ajoute le lien du service et conserve les abonnements existants. Pour modifier le schéma, utiliser `npm run db:generate` puis relire le SQL généré.
 
 ## Configurer son instance
 
 Prendre `.env.example` comme liste de paramètres. En local, définir les valeurs privées dans `.dev.vars` ; en hébergement, les enregistrer dans le gestionnaire de secrets de l’opérateur. Ne jamais les ajouter au dépôt.
 
-- Définir **`ACCESS_CONTROL_ENABLED=true`** pour imposer l’approbation des accès. Sans cet indicateur, le mode de compatibilité ne demande pas cette approbation.
+- Définir **`ACCESS_CONTROL_ENABLED=true`** pour imposer l’approbation des accès ; cette valeur est conservée dans l’exemple de configuration. Pour autoriser l’inscription directe, définir explicitement `ACCESS_CONTROL_ENABLED=false` et `ACCESS_DEFAULT_WORKSPACE_ID` sur son propre cercle : un profil authentifié rejoint alors uniquement ce cercle, en rôle membre, dans les limites de capacité. L’adresse e-mail reste à vérifier avec la connexion par mot de passe ; ce mode n’ouvre aucun accès anonyme.
 - Configurer `ACCESS_ADMIN_USER_IDS` avec les identifiants stables de ses propres administrateurs et, si nécessaire, `ACCESS_DEFAULT_WORKSPACE_ID` avec son propre cercle. Une adresse e-mail seule ne confère aucun pouvoir d’administration.
 - Pour la connexion par e-mail : générer son propre `BETTER_AUTH_SECRET` aléatoire d’au moins 32 caractères, régler `BETTER_AUTH_URL` sur l’origine exacte de son instance, puis activer `AUTH_EMAIL_ENABLED` seulement après raccordement des notifications.
 - Renseigner son propre destinataire administratif et l’identité Google autorisée. Ne pas utiliser les identifiants d’une autre instance.
@@ -68,6 +69,8 @@ Le script utilise `MailApp` pour envoyer des messages. Il ne lit pas la boîte G
 ## Architecture et sécurité
 
 Les routes dans `app/api/` appliquent les contrôles d’identité, d’accès au site et d’appartenance au cercle côté serveur. Better Auth gère les sessions et le hachage des mots de passe. La robustesse des mots de passe est évaluée localement ; aucun mot de passe n’est envoyé à un service de notation.
+
+Le nom d’un service est proposé localement depuis son domaine : le serveur ne télécharge pas le lien collé. Les URL de service sont limitées aux adresses publiques HTTP/HTTPS, sans identifiants, avec suppression de la recherche et du fragment. Les icônes sont chargées par le navigateur via Google Favicons, qui reçoit le nom de domaine du service ; si une icône échoue, les initiales prennent le relais. Voir aussi [le détail des liens et des modes d’inscription](docs/ajout-abonnement-par-lien.md).
 
 Les adaptateurs `oai-authenticated-*` sont réservés à un hébergement de confiance qui établit lui-même ces en-têtes. Sur un autre hébergeur, ils doivent être supprimés des requêtes publiques ou remplacés par une authentification vérifiée. Le simulateur d’identité inclus dans les outils de développement est réservé au loopback local et n’appartient pas au build de production.
 

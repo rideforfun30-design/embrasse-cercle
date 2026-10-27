@@ -57,6 +57,13 @@
       "when": 1793065403774,
       "tag": "0007_illegal_vertigo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1793104553763,
+      "tag": "0008_chief_dracula",
+      "breakpoints": true
     }
   ]
 }
