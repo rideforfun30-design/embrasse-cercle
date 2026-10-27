@@ -64,6 +64,20 @@
       "when": 1793104553763,
       "tag": "0008_chief_dracula",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793109403907,
+      "tag": "0009_amused_warbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793109560990,
+      "tag": "0010_tough_wallow",
+      "breakpoints": true
     }
   ]
 }

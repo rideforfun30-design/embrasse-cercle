@@ -56,3 +56,17 @@ export const billingWebhookEvents = sqliteTable("billing_webhook_events", {
   receivedAt: text("received_at").notNull(),
   processedAt: text("processed_at"),
 });
+
+// Written only by a future authenticated bank reconciliation service.
+// A provider's paid invoice alone does not prove that money reached the shared bank account.
+export const billingBankReceipts = sqliteTable("billing_bank_receipts", {
+  invoiceId: text("invoice_id").primaryKey().references(() => billingInvoices.id),
+  bankProvider: text("bank_provider").notNull(),
+  bankAccountId: text("bank_account_id").notNull(),
+  bankEntryReference: text("bank_entry_reference").notNull(),
+  bookedAmountCents: integer("booked_amount_cents").notNull(),
+  currency: text("currency").notNull(),
+  status: text("status", { enum: ["booked", "reversed"] }).notNull(),
+  bookedAt: text("booked_at").notNull(),
+  verifiedAt: text("verified_at").notNull(),
+}, t => [uniqueIndex("billing_bank_entry_unique").on(t.bankProvider, t.bankAccountId, t.bankEntryReference)]);

@@ -87,3 +87,21 @@ export const notificationOutbox = sqliteTable("notification_outbox", {
   attemptStartedAt: text("attempt_started_at"),
   expiresAt: text("expires_at"),
 }, t => [uniqueIndex("notification_outbox_event_unique").on(t.eventKey),index("notification_outbox_status").on(t.status,t.createdAt)]);
+
+export const subscriptionCredentials = sqliteTable("subscription_credentials", {
+  subscriptionId: text("subscription_id").primaryKey().references(() => subscriptions.id, { onDelete: "cascade" }),
+  encryptionVersion: integer("encryption_version").notNull(),
+  iv: text("iv").notNull(),
+  ciphertext: text("ciphertext").notNull(),
+  revision: integer("revision").notNull().default(1),
+  updatedAt: text("updated_at").notNull(),
+  updatedBy: text("updated_by").notNull().references(() => profiles.id),
+});
+
+export const subscriptionVaultEvents = sqliteTable("subscription_vault_events", {
+  id: text("id").primaryKey(),
+  subscriptionId: text("subscription_id").notNull().references(() => subscriptions.id, { onDelete: "cascade" }),
+  actorId: text("actor_id").notNull().references(() => profiles.id),
+  action: text("action", { enum: ["updated", "revealed", "deleted"] }).notNull(),
+  createdAt: text("created_at").notNull(),
+}, t => [index("subscription_vault_events_subscription").on(t.subscriptionId, t.createdAt)]);

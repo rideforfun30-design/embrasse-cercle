@@ -42,3 +42,111 @@
 /* Service website details share the existing subscription form and card layout. */
 .app-mark.has-site-icon{background:#fff;border:1px solid var(--line);overflow:hidden;flex-shrink:0}.app-mark img{display:block;width:32px;height:32px;object-fit:contain}.subscription-site-field{margin-bottom:23px}.dialog-body .subscription-site-field>label{margin-bottom:0}.optional-label{font-size:11px;font-weight:400;color:#8b957b;margin-left:6px}.subscription-site-field>.field-help{margin:9px 0 0;line-height:1.65}.subscription-site-field>input[aria-invalid=true]{border-color:#b7765b;background:#fffaf7}.site-field-error{font-size:12px;color:#a46145;line-height:1.6;margin:9px 0 0}.subscription-site-preview{display:flex;align-items:center;gap:12px;min-width:0;border:1px solid #e0e7d4;background:#f2f6e9;border-radius:9px;padding:14px;margin-top:15px}.subscription-site-preview>div{min-width:0;flex:1}.subscription-site-preview strong,.subscription-site-preview>div>span{display:block;overflow-wrap:anywhere}.subscription-site-preview strong{font-size:15px;font-weight:500;color:#445537;line-height:1.5}.subscription-site-preview>div>span{font-size:12px;color:#7c8e69;margin-top:2px}.site-preview-badge{font-size:10px;letter-spacing:.2px;color:#758763;flex-shrink:0}.detail-service{display:flex;align-items:center;gap:13px;margin-bottom:23px}.detail-service>.app-mark{flex-shrink:0}.detail-service>div{min-width:0;flex:1}.detail-service strong,.detail-service>div>span{display:block;overflow-wrap:anywhere}.detail-service strong{font-size:18px;font-weight:500;letter-spacing:-.4px;line-height:1.4}.detail-service>div>span{font-size:12px;color:#829070;margin-top:3px}.detail-service>a{flex-shrink:0}.subscription-card>.card-top>.app-mark{flex-shrink:0}
 @media(max-width:550px){.subscription-site-preview{padding:12px;gap:10px}.site-preview-badge{font-size:9px}.detail-service{flex-wrap:wrap;gap:11px}.detail-service>div{min-width:calc(100% - 58px)}.detail-service>a{margin-left:56px;min-height:40px}.subscription-site-preview strong{font-size:15px}.subscription-site-field>.field-help{font-size:12px!important}.optional-label{font-size:11px}}
+
+/* The welcome screen fits a desktop viewport while retaining natural overflow. */
+.bureau-app.is-welcome{position:relative;isolation:isolate;background:var(--paper)}
+.bureau-app.is-welcome::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(120deg,#f7f8f2 8%,#eef3e8 38%,#f7f4ed 70%,#f4f7ed 96%);background-size:190% 190%;background-position:15% 35%;animation:circle-welcome-wash 48s ease-in-out infinite alternate}
+@keyframes circle-welcome-wash{0%{background-position:15% 35%}50%{background-position:70% 55%}100%{background-position:35% 85%}}
+@media(min-width:1024px){
+  .is-welcome .bureau-topbar{height:64px;padding-inline:clamp(26px,3vw,42px)}
+  .is-welcome .bureau-content{display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,clamp(330px,32vw,380px));grid-template-rows:auto auto auto 1fr auto;column-gap:clamp(24px,3vw,46px);row-gap:14px;min-height:calc(100svh - 64px);padding:18px clamp(26px,3vw,42px) 10px;align-content:center}
+  .is-welcome .intro-kicker{grid-column:1;grid-row:1;margin:0;font-size:10px;letter-spacing:1.4px;align-self:end}
+  .is-welcome .auth-hero{display:contents}
+  .is-welcome .auth-hero>div{grid-column:1;grid-row:2;align-self:center;padding-top:0;min-width:0}
+  .is-welcome .auth-hero h1{font-size:clamp(42px,4.5vw,66px);line-height:1.02;letter-spacing:-2.6px;margin-bottom:16px}
+  .is-welcome .auth-hero>div>p{font-size:13px;line-height:1.65;margin:0 0 12px;max-width:43ch}
+  .is-welcome .auth-hero .connection-note{font-size:11px!important;line-height:1.6;margin-top:14px!important;align-items:flex-start;gap:7px}
+  .is-welcome .connection-note svg{flex-shrink:0;margin-top:1px}
+  .is-welcome .email-auth{grid-column:2;grid-row:1 / 5;align-self:center;min-width:0;padding:18px 20px;background:#fffef9eb}
+  .is-welcome .auth-step{font-size:9px;line-height:1.4;margin-bottom:7px}
+  .is-welcome .email-auth h2{font-size:25px;line-height:1.1;letter-spacing:-.8px;margin-bottom:12px}
+  .is-welcome .auth-mode-tabs{padding:3px;gap:3px;margin-bottom:12px}
+  .is-welcome .auth-mode-tabs button{font-size:11px;line-height:1.3;padding:7px 6px}
+  .is-welcome .email-auth form>p{font-size:12px;line-height:1.5;margin:0 0 12px}
+  .is-welcome .email-auth label{font-size:12px;line-height:1.4;margin-bottom:10px}
+  .is-welcome .email-auth input{font-size:14px;line-height:1.3;min-height:40px;padding:10px;margin-top:5px}
+  .is-welcome .email-auth .password-help{font-size:10.5px;line-height:1.5;margin:-3px 0 10px}
+  .is-welcome .email-auth label.auth-show-password{font-size:11px;line-height:1.5;margin:0 0 12px;gap:8px}
+  .is-welcome .email-auth .auth-show-password input{width:15px;height:15px;min-height:0;margin:0;padding:0}
+  .is-welcome .email-auth form>.button{min-height:40px;padding:10px 12px;font-size:12px}
+  .is-welcome .email-auth .auth-fineprint{font-size:10.5px;line-height:1.5;margin:12px 0 0}
+  .is-welcome .auth-secondary-actions{margin-top:12px;gap:10px}
+  .is-welcome .auth-secondary-actions button{font-size:11px}
+  .is-welcome .email-auth .form-error,.is-welcome .auth-notice{font-size:12px;line-height:1.5;padding:10px 12px;margin-bottom:12px}
+  .is-welcome .auth-signup-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:12px}
+  .is-welcome .auth-signup-form>*{grid-column:1 / -1}
+  .is-welcome .auth-signup-form .auth-password-field{grid-column:1;grid-row:3;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+  .is-welcome .auth-signup-form .auth-password-confirm{grid-column:2;grid-row:3;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+  .is-welcome .auth-signup-form .password-help{grid-row:4}
+  .is-welcome .intro-features{grid-column:1;grid-row:3;gap:18px;margin:0;padding:17px 0 0;align-self:center}
+  .is-welcome .intro-features article>span{font-size:10px;line-height:1.4;margin-bottom:6px}
+  .is-welcome .intro-features h2{font-size:16px;line-height:1.25;letter-spacing:-.4px;margin:0}
+  .is-welcome .intro-features p{font-size:12px;line-height:1.5;max-width:none;margin:7px 0 0}
+  .is-welcome .intro-bottom{grid-column:1;grid-row:4;align-self:end;gap:11px;padding:14px 16px;background:#edf2dfc9}
+  .is-welcome .intro-bottom svg{flex-shrink:0;width:21px;height:21px}
+  .is-welcome .intro-bottom p{font-size:12px;line-height:1.6}
+  .is-welcome .app-footer{grid-column:1 / -1;grid-row:5;align-self:end;padding:8px 0 0;font-size:9px;gap:18px}
+}
+@media(min-width:1440px) and (min-height:850px){
+  .is-welcome .bureau-content{padding-top:28px;padding-bottom:18px;row-gap:20px}
+  .is-welcome .auth-hero h1{font-size:68px;margin-bottom:22px}
+  .is-welcome .auth-hero>div>p{font-size:14px;line-height:1.75}
+  .is-welcome .email-auth{padding:24px}
+  .is-welcome .intro-features{padding-top:22px;gap:24px}
+  .is-welcome .intro-features h2{font-size:18px}
+  .is-welcome .intro-features p{font-size:13px;line-height:1.65}
+  .is-welcome .intro-bottom{padding:18px 20px}
+}
+@media(min-width:1024px) and (max-height:800px){
+  .is-welcome .auth-step{display:none}
+  .is-welcome .email-auth{padding:16px 18px}
+  .is-welcome .email-auth h2{font-size:23px;margin-bottom:10px}
+  .is-welcome .auth-mode-tabs{margin-bottom:10px}
+  .is-welcome .email-auth form>p{font-size:11.5px;line-height:1.45;margin-bottom:10px}
+  .is-welcome .email-auth label{font-size:11.5px;margin-bottom:8px}
+  .is-welcome .email-auth .password-help{font-size:10.5px;line-height:1.4;margin:0 0 8px}
+  .is-welcome .email-auth label.auth-show-password{margin-bottom:10px}
+  .is-welcome .email-auth .auth-fineprint{font-size:10.5px;margin:8px 0 0}
+  .is-welcome .auth-secondary-actions{margin-top:10px}
+  .is-welcome .auth-hero h1{font-size:clamp(42px,4.2vw,58px);margin-bottom:14px}
+  .is-welcome .intro-features{gap:14px;padding-top:14px}
+  .is-welcome .intro-features h2{font-size:15px}
+  .is-welcome .intro-features p{font-size:11.5px;line-height:1.45}
+}
+@media(prefers-reduced-motion:reduce){.bureau-app.is-welcome::before{animation:none;background-position:50% 50%}}
+
+/* Append to app/globals.css after integrating SubscriptionCredentials. */
+.vault-section{margin-top:26px;padding:20px;border:1px solid #dce5ce;border-radius:10px;background:#f7f9f1;color:#526645}
+.vault-heading{display:flex;gap:11px;align-items:flex-start;margin-bottom:18px}
+.vault-symbol{display:grid;place-items:center;width:35px;height:35px;flex-shrink:0;background:#e8efd9;border:1px solid #dce6ca;border-radius:8px;color:#6d8650}
+.vault-heading>div{min-width:0}
+.vault-heading h3{font-size:15px;font-weight:500;line-height:1.4;letter-spacing:-.2px;margin:0 0 5px}
+.vault-heading p,.vault-status{font-size:12px;line-height:1.65;color:#778969;margin:0}
+.vault-lock{display:flex;align-items:flex-start;gap:10px;padding:14px;background:#eef2e6;border-radius:7px;border:1px solid #e0e6d5}
+.vault-lock svg{flex-shrink:0;margin-top:2px;color:#899b75}
+.vault-lock p,.vault-reveal-action>p{font-size:12px;line-height:1.75;margin:0;color:#718260}
+.vault-reveal-action>p{margin-bottom:13px}
+.vault-revealed{padding-top:3px}
+.vault-section .vault-label{display:block;font-size:12px;line-height:1.5;color:#637a50;margin:0 0 7px}
+.vault-section .vault-label>input,.vault-password-row>input{display:block;width:100%;min-width:0;border:1px solid #d7e2c8;background:#fff;border-radius:6px;padding:11px 12px;min-height:43px;font:inherit;font-size:14px;line-height:1.4;color:#425b31;margin-top:6px}
+.vault-section .vault-label>input{margin-bottom:16px}
+.vault-section input[readonly]{background:#fffef9;color:#526b40}
+.vault-password-row{display:flex;align-items:stretch;gap:8px;margin-bottom:12px}
+.vault-password-row>input{margin:0;flex:1}
+.vault-password-row>.button{flex-shrink:0;min-height:43px;gap:6px}
+.vault-secret-footer{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.vault-secret-footer p{display:flex;gap:6px;align-items:flex-start;max-width:320px;font-size:10px;line-height:1.65;color:#889974;margin:0}
+.vault-secret-footer p svg{flex-shrink:0;margin-top:2px}
+.vault-secret-footer>.button{padding-top:0;padding-bottom:0;min-height:30px;font-size:11px;white-space:normal;text-align:left;justify-content:flex-start}
+.vault-edit-button{margin-top:16px}
+.vault-editor{margin-top:18px;border-top:1px solid #e0e7d5;padding-top:18px}
+.vault-editor-note{font-size:12px;line-height:1.75;color:#7d8b6e;margin:0 0 17px}
+.vault-suggest-button{padding-left:0;margin:0 0 5px;white-space:normal;text-align:left;justify-content:flex-start;color:#5d7a43}
+.vault-helper{font-size:11px;line-height:1.75;color:#899977;margin:0 0 18px}
+.vault-editor-actions{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}
+.vault-editor-actions .button{font-size:11px;min-height:39px;white-space:normal}
+.vault-notice,.vault-error{font-size:12px;line-height:1.7;border-radius:7px;padding:11px 13px;margin:15px 0 0;overflow-wrap:anywhere}
+.vault-notice{color:#627d46;background:#edf4df;border:1px solid #dce8c9}
+.vault-error{color:#9d6548;background:#fff1e9;border:1px solid #efd8cb}
+.vault-refresh-button{margin-top:13px;padding-left:0;color:#7c8e68;min-height:32px}
+@media(max-width:550px){.vault-section{padding:17px 15px;margin-top:23px}.vault-heading{gap:9px}.vault-heading h3{font-size:15px}.vault-heading p,.vault-lock p,.vault-reveal-action>p{font-size:12px}.vault-section .vault-label>input,.vault-password-row>input{font-size:16px;min-height:46px}.vault-password-row>.button{min-height:46px;font-size:11px;padding-inline:10px}.vault-password-row{gap:7px}.vault-secret-footer{gap:9px}.vault-secret-footer p{font-size:11px;max-width:none}.vault-secret-footer>.button{min-height:36px}.vault-editor-actions{justify-content:stretch}.vault-editor-actions>.button{flex:1;min-height:43px}.vault-helper{font-size:11px}.vault-heading>div{padding-top:0}.vault-section .vault-label{font-size:12px}}

@@ -10,6 +10,7 @@ Ce dépôt contient le code public de l’application. Il ne contient aucune bas
 - Validation des demandes d’accès par un administrateur, ou inscription directe au cercle configuré selon le mode choisi.
 - Création de cercles, invitations, abonnements et demandes de participation.
 - Ajout du lien public d’un service : nom proposé, icône et accès au site, avec nom modifiable et secours par initiales.
+- Coffre chiffré par abonnement pour les identifiants du service, avec générateur de mot de passe local sans IA.
 - Calcul des parts selon les membres et gestion du préavis de départ.
 - Préférences de notification et file d’envoi par Google Apps Script.
 - Préparation des cotisations récurrentes, avec protections empêchant leur activation accidentelle.
@@ -33,13 +34,13 @@ npm run build
 
 ## Initialiser une base locale
 
-Après la première construction, appliquer les neuf fichiers SQL de `drizzle/` **une seule fois, dans l’ordre numérique**, sur une base locale vide. La commande suivante illustre le premier ; changer le nom du fichier pour chaque migration suivante :
+Après la première construction, appliquer les onze fichiers SQL de `drizzle/` **une seule fois, dans l’ordre numérique**, sur une base locale vide. La commande suivante illustre le premier ; changer le nom du fichier pour chaque migration suivante :
 
 ```sh
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_hesitant_luminals.sql
 ```
 
-La liaison D1 locale utilise un identifiant factice. Les migrations décrivent uniquement le schéma : aucune donnée de production n’est incluse. Sur une instance déjà initialisée, appliquer seulement les nouvelles migrations ; `0008_chief_dracula.sql` ajoute le lien du service et conserve les abonnements existants. Pour modifier le schéma, utiliser `npm run db:generate` puis relire le SQL généré.
+La liaison D1 locale utilise un identifiant factice. Les migrations décrivent uniquement le schéma : aucune donnée de production n’est incluse. Sur une instance déjà initialisée, appliquer seulement les nouvelles migrations ; `0008_chief_dracula.sql` ajoute le lien du service, `0009_amused_warbird.sql` le coffre et son journal, puis `0010_tough_wallow.sql` les preuves de crédits bancaires. Pour modifier le schéma, utiliser `npm run db:generate` puis relire le SQL généré.
 
 ## Configurer son instance
 
@@ -66,6 +67,14 @@ Créer son propre projet Google Apps Script sous le compte expéditeur autorisé
 
 Le script utilise `MailApp` pour envoyer des messages. Il ne lit pas la boîte Gmail. Le serveur vérifie la signature du jeton Google, son audience, son identité et son expiration. L’envoi dépend des quotas Google et ne garantit pas la réception en boîte principale.
 
+## Coffre et fonds confirmés
+
+Le responsable peut enregistrer les identifiants d’un service dans un coffre séparé par abonnement. Les données sont chiffrées au repos en AES-256-GCM avec une clé dédiée `VAULT_ENCRYPTION_KEY` de 32 octets, conservée uniquement dans les secrets d’hébergement. `VAULT_DEFAULT_LOGIN_EMAIL` peut suggérer son propre e-mail de service, également hors du code. Le générateur utilise `crypto.getRandomValues` et une liste de mots locale, sans appel IA ou réseau.
+
+Pour un participant ordinaire, révéler le coffre exige une participation active, une facture réelle payée pour la période et une preuve de crédit bancaire comptabilisé en EUR sur le compte attendu `VAULT_BANK_ACCOUNT_ID`. Le navigateur ne peut pas créer cette preuve. Le connecteur bancaire et son ingestion ne sont pas branchés dans cette publication : sans cette configuration et ces preuves, l’accès des participants reste verrouillé. Les responsables conservent la gestion du coffre lorsque sa clé est configurée.
+
+Le coffre ne crée pas de compte chez le fournisseur et ne change pas son mot de passe. Après le départ d’un membre, le responsable doit changer ce mot de passe chez le fournisseur pour révoquer les copies déjà connues. Une rotation de clé demande une réécriture chiffrée des données ; perdre la clé rend les données existantes illisibles. Voir [les détails du coffre et des fonds confirmés](docs/coffre-et-fonds-confirmes.md).
+
 ## Architecture et sécurité
 
 Les routes dans `app/api/` appliquent les contrôles d’identité, d’accès au site et d’appartenance au cercle côté serveur. Better Auth gère les sessions et le hachage des mots de passe. La robustesse des mots de passe est évaluée localement ; aucun mot de passe n’est envoyé à un service de notation.
@@ -74,7 +83,7 @@ Le nom d’un service est proposé localement depuis son domaine : le serveur ne
 
 Les adaptateurs `oai-authenticated-*` sont réservés à un hébergement de confiance qui établit lui-même ces en-têtes. Sur un autre hébergeur, ils doivent être supprimés des requêtes publiques ou remplacés par une authentification vérifiée. Le simulateur d’identité inclus dans les outils de développement est réservé au loopback local et n’appartient pas au build de production.
 
-La suite de tests couvre notamment les accès, l’authentification, les notifications, le préavis et les garde-fous de paiement. Elle ne constitue pas une garantie d’absence de faille. Pour signaler un problème, éviter toute donnée personnelle, secret, mot de passe ou jeton dans les issues publiques.
+La suite de tests couvre notamment les accès, l’authentification, les notifications, le préavis, les garde-fous de paiement et le coffre. Elle ne constitue pas une garantie d’absence de faille. Pour signaler un problème, éviter toute donnée personnelle, secret, mot de passe ou jeton dans les issues publiques.
 
 ## Organisation
 
