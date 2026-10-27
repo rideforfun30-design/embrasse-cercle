@@ -1,0 +1,62 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1793040217340,
+      "tag": "0000_hesitant_luminals",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793040362758,
+      "tag": "0001_productive_jack_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793040419991,
+      "tag": "0002_optimal_jack_flag",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793063812629,
+      "tag": "0003_whole_luke_cage",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793063870752,
+      "tag": "0004_flaky_lady_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793064578533,
+      "tag": "0005_crazy_fat_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793064701896,
+      "tag": "0006_gorgeous_cobalt_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793065403774,
+      "tag": "0007_illegal_vertigo",
+      "breakpoints": true
+    }
+  ]
+}
